@@ -13,9 +13,6 @@ export enum Social {
   Linkedin = 'linkedin',
   Sms = 'sms',
   Telegram = 'telegram',
-  Snapchat = 'snapchat',
-  Messenger = 'messenger',
-  Viber = 'viber',
 }
 
 export enum ShareAsset {
@@ -42,20 +39,19 @@ export interface ActivityItem {
 
 export interface ActivityItemSource {
   placeholderItem: ActivityItem;
-  item: { [key in ActivityType]?: ActivityItem | null | undefined };
-  subject?: { [key in ActivityType]?: string };
-  dataTypeIdentifier?: { [key in ActivityType]?: string };
-  thumbnailImage?: { [key in ActivityType]?: string };
+  item: { [key in ActivityType]: ActivityItem | null | undefined };
+  subject?: { [key in ActivityType]: string };
+  dataTypeIdentifier?: { [key in ActivityType]: string };
+  thumbnailImage?: { [key in ActivityType]: string };
   linkMetadata?: LinkMetadata;
 }
 
 interface BaseShareSingleOptions {
-  urls?: string[];
   url?: string;
   type?: string;
   filename?: string;
   message?: string;
-  title?: string;
+  title: string;
   subject?: string;
   email?: string;
   recipient?: string;
@@ -78,6 +74,7 @@ export interface InstagramStoriesShareSingleOptions extends BaseSocialStoriesSha
 
 export interface FacebookStoriesShareSingleOptions extends BaseSocialStoriesShareSingleOptions {
   social: Social.FacebookStories;
+  method: Exclude<ShareAsset, ShareAsset.BackgroundVideo>;
   appId: string;
 }
 
@@ -88,21 +85,20 @@ export type ShareSingleOptions =
 
 export interface ShareOptions {
   message?: string;
-  title?: string;
+  title: string;
   url?: string;
   urls?: string[];
   type?: string;
   subject?: string;
   email?: string;
   recipient?: string;
-  excludedActivityTypes?: ActivityType[] | string[];
+  excludedActivityTypes?: ActivityType[];
   failOnCancel?: boolean;
   showAppsToView?: boolean;
   filename?: string;
   filenames?: string[];
   saveToFiles?: boolean;
   activityItemSources?: ActivityItemSource[];
-  isNewTask?: boolean;
 }
 
 export type ActivityType =

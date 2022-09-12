@@ -2,15 +2,14 @@ package cl.json.social;
 
 import android.app.Activity;
 import android.content.ActivityNotFoundException;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
-import android.content.IntentSender;
 import android.content.pm.PackageManager;
+import android.content.pm.ResolveInfo;
 import android.net.Uri;
 import android.os.Parcelable;
 import android.text.TextUtils;
-import android.content.pm.ResolveInfo;
-import android.content.ComponentName;
 
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReadableArray;
@@ -21,9 +20,9 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.List;
 import java.net.URLEncoder;
 import java.util.ArrayList;
+import java.util.List;
 
 import cl.json.RNShareModule;
 import cl.json.ShareFile;
@@ -59,13 +58,15 @@ public abstract class ShareIntent {
 
         if (!resInfo.isEmpty()) {
             for (ResolveInfo resolveInfo : resInfo) {
-                if (resolveInfo.activityInfo == null || options.getArray("excludedActivityTypes").toString().contains(resolveInfo.activityInfo.packageName))
+                if (resolveInfo.activityInfo == null || options.getArray("excludedActivityTypes").toString()
+                        .contains(resolveInfo.activityInfo.packageName))
                     continue;
 
                 HashMap<String, String> info = new HashMap<String, String>();
                 info.put("packageName", resolveInfo.activityInfo.packageName);
                 info.put("className", resolveInfo.activityInfo.name);
-                info.put("simpleName", String.valueOf(resolveInfo.activityInfo.loadLabel(this.reactContext.getPackageManager())));
+                info.put("simpleName",
+                        String.valueOf(resolveInfo.activityInfo.loadLabel(this.reactContext.getPackageManager())));
                 intentMetaInfo.add(info);
             }
 
@@ -86,8 +87,9 @@ public abstract class ShareIntent {
                     targetedShareIntents.add(targetedShareIntent);
                 }
 
-                chooserIntent = Intent.createChooser(targetedShareIntents.remove(targetedShareIntents.size() - 1), "share");
-                chooserIntent.putExtra(Intent.EXTRA_INITIAL_INTENTS, targetedShareIntents.toArray(new Parcelable[]{}));
+                chooserIntent = Intent.createChooser(targetedShareIntents.remove(targetedShareIntents.size() - 1),
+                        "share");
+                chooserIntent.putExtra(Intent.EXTRA_INITIAL_INTENTS, targetedShareIntents.toArray(new Parcelable[] {}));
                 return chooserIntent;
             }
         }
@@ -97,10 +99,6 @@ public abstract class ShareIntent {
 
     public void open(ReadableMap options) throws ActivityNotFoundException {
         this.options = options;
-
-        if (ShareIntent.hasValidKey("isNewTask", options) && options.getBoolean("isNewTask")) {
-            this.getIntent().addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-        }
 
         if (ShareIntent.hasValidKey("subject", options)) {
             this.getIntent().putExtra(Intent.EXTRA_SUBJECT, options.getString("subject"));
@@ -119,7 +117,7 @@ public abstract class ShareIntent {
             message = options.getString("message");
         }
 
-        String socialType  = "";
+        String socialType = "";
         if (ShareIntent.hasValidKey("social", options)) {
             socialType = options.getString("social");
         }
@@ -194,15 +192,10 @@ public abstract class ShareIntent {
         if (ShareIntent.hasValidKey("filename", options)) {
             filename = options.getString("filename");
         }
-
-        Boolean useInternalStorage = false;
-        if (ShareIntent.hasValidKey("useInternalStorage", options)) {
-            useInternalStorage = options.getBoolean("useInternalStorage");
-        }
         if (ShareIntent.hasValidKey("type", options)) {
-            return new ShareFile(options.getString("url"), options.getString("type"), filename, useInternalStorage, this.reactContext);
+            return new ShareFile(options.getString("url"), options.getString("type"), filename, this.reactContext);
         } else {
-            return new ShareFile(options.getString("url"), filename, useInternalStorage, this.reactContext);
+            return new ShareFile(options.getString("url"), filename, this.reactContext);
         }
     }
 
@@ -215,14 +208,10 @@ public abstract class ShareIntent {
             }
         }
 
-        Boolean useInternalStorage = false;
-        if (ShareIntent.hasValidKey("useInternalStorage", options)) {
-            useInternalStorage = options.getBoolean("useInternalStorage");
-        }
         if (ShareIntent.hasValidKey("type", options)) {
-            return new ShareFiles(options.getArray("urls"), filenames, options.getString("type"), useInternalStorage, this.reactContext);
+            return new ShareFiles(options.getArray("urls"), filenames, options.getString("type"), this.reactContext);
         } else {
-            return new ShareFiles(options.getArray("urls"), filenames, useInternalStorage, this.reactContext);
+            return new ShareFiles(options.getArray("urls"), filenames, this.reactContext);
         }
     }
 
@@ -257,41 +246,30 @@ public abstract class ShareIntent {
     protected void openIntentChooser() throws ActivityNotFoundException {
         Activity activity = this.reactContext.getCurrentActivity();
         if (activity == null) {
-            TargetChosenReceiver.sendCallback(false, "Something went wrong");
+            TargetChosenReceiver.sendCallback(false, "main_activity_null");
             return;
         }
-        Intent chooser;
-        IntentSender intentSender = null;
-        if (TargetChosenReceiver.isSupported()) {
-            intentSender = TargetChosenReceiver.getSharingSenderIntent(this.reactContext);
-            chooser = Intent.createChooser(this.getIntent(), this.chooserTitle, intentSender);
-        } else {
-            chooser = Intent.createChooser(this.getIntent(), this.chooserTitle);
-        }
-        chooser.addFlags(Intent.FLAG_ACTIVITY_NO_HISTORY);
-
-        if (ShareIntent.hasValidKey("showAppsToView", options) && ShareIntent.hasValidKey("url", options)) {
-            Intent viewIntent = new Intent(Intent.ACTION_VIEW);
-            viewIntent.setType(this.fileShare.getType());
-
-            Intent[] viewIntents = this.getIntentsToViewFile(viewIntent, this.fileShare.getURI());
-
-            chooser.putExtra(Intent.EXTRA_INITIAL_INTENTS, viewIntents);
-        }
-
-        if (ShareIntent.hasValidKey("excludedActivityTypes", options)) {
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
-                chooser.putExtra(Intent.EXTRA_EXCLUDE_COMPONENTS, getExcludedComponentArray(options.getArray("excludedActivityTypes")));
-                activity.startActivityForResult(chooser, RNShareModule.SHARE_REQUEST_CODE);
-            } else {
-                activity.startActivityForResult(excludeChooserIntent(this.getIntent(),options), RNShareModule.SHARE_REQUEST_CODE);
+        List<Intent> targetedShareIntents = new ArrayList<>();
+        List<ResolveInfo> resInfo = reactContext.getPackageManager().queryIntentActivities(this.getIntent(), 0);
+        if (!resInfo.isEmpty()) {
+            for (ResolveInfo info : resInfo) {
+                Intent targetedShare = new Intent(android.content.Intent.ACTION_SEND);
+                targetedShare.setPackage(info.activityInfo.packageName.toLowerCase());
+                targetedShare.setType("text/plain"); // put here your mime type
+                targetedShareIntents.add(targetedShare);
             }
+            // Then show the ACTION_PICK_ACTIVITY to let the user select it
+            Intent intentPick = new Intent();
+            intentPick.setAction(Intent.ACTION_PICK_ACTIVITY);
+            // Set the title of the dialog
+            intentPick.putExtra(Intent.EXTRA_TITLE, this.chooserTitle);
+            intentPick.putExtra(Intent.EXTRA_INTENT, this.getIntent());
+            intentPick.putExtra(Intent.EXTRA_INITIAL_INTENTS, targetedShareIntents.toArray());
+            // Call StartActivityForResult so we can get the app name selected by the user
+            intentPick.setFlags(Intent.FLAG_ACTIVITY_NO_HISTORY);
+            activity.startActivityForResult(intentPick, RNShareModule.SHARE_REQUEST_CODE);
         } else {
-            activity.startActivityForResult(chooser, RNShareModule.SHARE_REQUEST_CODE);
-        }
-
-        if (intentSender == null) {
-            TargetChosenReceiver.sendCallback(true, true, "OK");
+            TargetChosenReceiver.sendCallback(false, "no_apps_available");
         }
     }
 
@@ -327,8 +305,8 @@ public abstract class ShareIntent {
 
     protected abstract String getPlayStoreLink();
 
-    private ComponentName[] getExcludedComponentArray(ReadableArray excludeActivityTypes){
-        if (excludeActivityTypes == null){
+    private ComponentName[] getExcludedComponentArray(ReadableArray excludeActivityTypes) {
+        if (excludeActivityTypes == null) {
             return null;
         }
         Intent dummy = new Intent(getIntent().getAction());
@@ -337,12 +315,13 @@ public abstract class ShareIntent {
         List<ResolveInfo> resInfoList = this.reactContext.getPackageManager().queryIntentActivities(dummy, 0);
         for (int index = 0; index < excludeActivityTypes.size(); index++) {
             String packageName = excludeActivityTypes.getString(index);
-            for(ResolveInfo resInfo : resInfoList) {
-                if(resInfo.activityInfo.packageName.equals(packageName)) {
-                    componentNameList.add(new ComponentName(resInfo.activityInfo.packageName, resInfo.activityInfo.name));
+            for (ResolveInfo resInfo : resInfoList) {
+                if (resInfo.activityInfo.packageName.equals(packageName)) {
+                    componentNameList
+                            .add(new ComponentName(resInfo.activityInfo.packageName, resInfo.activityInfo.name));
                 }
             }
         }
-        return componentNameList.toArray(new ComponentName[]{});
+        return componentNameList.toArray(new ComponentName[] {});
     }
 }

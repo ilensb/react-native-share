@@ -4,59 +4,76 @@ import android.app.Activity;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
 import android.net.Uri;
+import android.text.TextUtils;
 import androidx.annotation.Nullable;
 
 import com.facebook.react.bridge.ActivityEventListener;
+import com.facebook.react.bridge.Callback;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
 import com.facebook.react.bridge.ReadableMap;
-import com.facebook.react.bridge.Callback;
 
 import java.util.HashMap;
-import java.util.Locale;
 import java.util.Map;
 
 import cl.json.social.EmailShare;
-import cl.json.social.FacebookShare;
 import cl.json.social.FacebookStoriesShare;
 import cl.json.social.FacebookPagesManagerShare;
+import cl.json.social.FacebookShare;
 import cl.json.social.GenericShare;
 import cl.json.social.GooglePlusShare;
+import cl.json.social.InstagramShare;
+import cl.json.social.PinterestShare;
+import cl.json.social.SMSShare;
+import cl.json.social.MessengerShare;
+import cl.json.social.LinkedinShare;
 import cl.json.social.ShareIntent;
+import cl.json.social.SnapChatShare;
 import cl.json.social.TargetChosenReceiver;
 import cl.json.social.TelegramShare;
 import cl.json.social.TwitterShare;
 import cl.json.social.WhatsAppShare;
 import cl.json.social.WhatsAppBusinessShare;
-import cl.json.social.InstagramShare;
 import cl.json.social.InstagramStoriesShare;
-import cl.json.social.PinterestShare;
-import cl.json.social.SnapChatShare;
-import cl.json.social.SMSShare;
-import cl.json.social.MessengerShare;
-import cl.json.social.LinkedinShare;
-import cl.json.social.ViberShare;
 
 public class RNShareModule extends ReactContextBaseJavaModule implements ActivityEventListener {
 
     public static final int SHARE_REQUEST_CODE = 16845;
+    public static final int SHARE_FINISHED_CODE = 16846;
     private final ReactApplicationContext reactContext;
+    private String pendingShareAppName = null;
 
-    // removed @Override temporarily just to get it working on different versions of RN
-    public void onActivityResult(int requestCode, int resultCode, Intent data) {
-        if (requestCode == SHARE_REQUEST_CODE) {
-            if (resultCode == Activity.RESULT_CANCELED) {
-                TargetChosenReceiver.sendCallback(true, false, "CANCELED");
-            } else if (resultCode == Activity.RESULT_OK) {
-                TargetChosenReceiver.sendCallback(true, true);
-            }
-        }
-    }
-
-    // removed @Override temporarily just to get it working on different versions of RN
+    // removed @Override temporarily just to get it working on different versions of
+    // RN
+    @Override
     public void onActivityResult(Activity activity, int requestCode, int resultCode, Intent data) {
-        onActivityResult(requestCode, resultCode, data);
+        // onActivityResult(requestCode, resultCode, data);
+        if (requestCode == SHARE_REQUEST_CODE) {
+            if (pendingShareAppName != null) {
+                TargetChosenReceiver.sendCallback(false, "another_share_pending");
+                return;
+            }
+            if (resultCode != Activity.RESULT_OK) {
+                TargetChosenReceiver.sendCallback(false, "share_intent_cancelled");
+                return;
+            }
+            if (data == null || data.getComponent() == null
+                    || TextUtils.isEmpty(data.getComponent().flattenToShortString())) {
+                TargetChosenReceiver.sendCallback(false, "unknown_application");
+                return;
+            }
+            pendingShareAppName = data.getComponent().flattenToShortString();
+            activity.startActivityForResult(data, SHARE_FINISHED_CODE); // Start the selected activity
+        }
+        if (requestCode == SHARE_FINISHED_CODE) {
+            if (pendingShareAppName == null) {
+                TargetChosenReceiver.sendCallback(false, "pending_share_lost");
+                return;
+            }
+            TargetChosenReceiver.sendCallback(true, true, pendingShareAppName);
+            pendingShareAppName = null;
+        }
     }
 
     @Override
@@ -81,9 +98,7 @@ public class RNShareModule extends ReactContextBaseJavaModule implements Activit
         snapchat,
         sms,
         linkedin,
-        telegram,
-        viber;
-
+        telegram;
 
         public static ShareIntent getShareClass(String social, ReactApplicationContext reactContext) {
             SHARES share = valueOf(social);
@@ -122,8 +137,6 @@ public class RNShareModule extends ReactContextBaseJavaModule implements Activit
                     return new LinkedinShare(reactContext);
                 case telegram:
                     return new TelegramShare(reactContext);
-                case viber:
-                    return new ViberShare(reactContext);
                 default:
                     return null;
             }
@@ -146,13 +159,17 @@ public class RNShareModule extends ReactContextBaseJavaModule implements Activit
     public Map<String, Object> getConstants() {
         Map<String, Object> constants = new HashMap<>();
         for (SHARES val : SHARES.values()) {
-            constants.put(val.toString().toUpperCase(Locale.ROOT), val.toString());
+            constants.put(val.toString().toUpperCase(), val.toString());
         }
         return constants;
     }
 
     @ReactMethod
     public void open(ReadableMap options, @Nullable Callback failureCallback, @Nullable Callback successCallback) {
+        if (pendingShareAppName != null && failureCallback != null) {
+            failureCallback.invoke("another_share_pending");
+            return;
+        }
         TargetChosenReceiver.registerCallbacks(successCallback, failureCallback);
         try {
             GenericShare share = new GenericShare(this.reactContext);
@@ -169,7 +186,8 @@ public class RNShareModule extends ReactContextBaseJavaModule implements Activit
     }
 
     @ReactMethod
-    public void shareSingle(ReadableMap options, @Nullable Callback failureCallback, @Nullable Callback successCallback) {
+    public void shareSingle(ReadableMap options, @Nullable Callback failureCallback,
+            @Nullable Callback successCallback) {
         System.out.println("SHARE SINGLE METHOD");
         TargetChosenReceiver.registerCallbacks(successCallback, failureCallback);
         if (ShareIntent.hasValidKey("social", options)) {
@@ -195,7 +213,8 @@ public class RNShareModule extends ReactContextBaseJavaModule implements Activit
     }
 
     @ReactMethod
-    public void isPackageInstalled(String packagename, @Nullable Callback failureCallback, @Nullable Callback successCallback) {
+    public void isPackageInstalled(String packagename, @Nullable Callback failureCallback,
+            @Nullable Callback successCallback) {
         try {
             boolean res = ShareIntent.isPackageInstalled(packagename, this.reactContext);
             successCallback.invoke(res);

@@ -37,9 +37,15 @@ const RNShare = {
     LINKEDIN: NativeModules.RNShare.LINKEDIN || Social.Linkedin,
     SMS: NativeModules.RNShare.SMS || Social.Sms,
     TELEGRAM: NativeModules.RNShare.TELEGRAM || Social.Telegram,
-    MESSENGER: NativeModules.RNShare.MESSENGER || Social.Messenger,
-    SNAPCHAT: NativeModules.RNShare.SNAPCHAT || Social.Snapchat,
-    VIBER: NativeModules.RNShare.VIBER || Social.Viber,
+  },
+
+  FacebookStories: {
+    SHARE_BACKGROUND_IMAGE:
+      NativeModules.RNShare.SHARE_BACKGROUND_IMAGE || ShareAsset.BackgroundImage,
+    SHARE_STICKER_IMAGE: NativeModules.RNShare.SHARE_STICKER_IMAGE || ShareAsset.StickerImage,
+    SHARE_BACKGROUND_AND_STICKER_IMAGE:
+      NativeModules.RNShare.SHARE_BACKGROUND_AND_STICKER_IMAGE ||
+      ShareAsset.BackgroundAndStickerImage,
   },
 
   open(options: ShareOptions): Promise<ShareOpenResult | never> {
@@ -91,10 +97,6 @@ const RNShare = {
       return new Promise((resolve, reject) => {
         requireAndAskPermissions(options)
           .then(() => {
-            if (options.url) {
-              options.urls = [options.url];
-            }
-
             NativeModules.RNShare.shareSingle(
               options,
               (error) => {
@@ -102,7 +104,7 @@ const RNShare = {
               },
               (success, message) => {
                 return resolve({
-                  success: Boolean(success),
+                  success,
                   message,
                 });
               },

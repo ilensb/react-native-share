@@ -76,33 +76,26 @@ public class InstagramStoriesShare extends SingleShareIntent {
             this.intent.putExtra("bottom_background_color", options.getString("backgroundBottomColor"));
         }
 
-        Boolean useInternalStorage = false;
-        if (this.hasValidKey("useInternalStorage", options)) {
-            useInternalStorage = options.getBoolean("useInternalStorage");
-        }
-
         Boolean hasBackgroundAsset = this.hasValidKey("backgroundImage", options)
                 || this.hasValidKey("backgroundVideo", options);
 
         if (hasBackgroundAsset) {
             String backgroundFileName = "";
-            String backgroundType = "image/jpeg";
 
             if (this.hasValidKey("backgroundImage", options)) {
                 backgroundFileName = options.getString("backgroundImage");
             } else if (this.hasValidKey("backgroundVideo", options)) {
                 backgroundFileName = options.getString("backgroundVideo");
-                backgroundType = "video/*";
             }
 
-            ShareFile backgroundAsset = new ShareFile(backgroundFileName, backgroundType, "background", useInternalStorage, this.reactContext);
+            ShareFile backgroundAsset = new ShareFile(backgroundFileName, "background", this.reactContext);
 
             this.intent.setDataAndType(backgroundAsset.getURI(), backgroundAsset.getType());
             this.intent.setFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
         }
 
         if (this.hasValidKey("stickerImage", options)) {
-            ShareFile stickerAsset = new ShareFile(options.getString("stickerImage"), "image/png", "sticker", useInternalStorage, this.reactContext);
+            ShareFile stickerAsset = new ShareFile(options.getString("stickerImage"), "sticker", this.reactContext);
 
             if (!hasBackgroundAsset) {
                 this.intent.setType("image/*");

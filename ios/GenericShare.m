@@ -17,7 +17,8 @@
     inAppBaseUrl:(NSString *)inAppBaseUrl {
 
     NSLog(@"Try open view");
-    if(![serviceType isEqualToString:@"com.apple.social.twitter"] && [[UIApplication sharedApplication] canOpenURL:[NSURL URLWithString:inAppBaseUrl]]) {
+    if([[UIApplication sharedApplication] canOpenURL:[NSURL URLWithString:inAppBaseUrl]]) {
+
         SLComposeViewController *composeController = [SLComposeViewController  composeViewControllerForServiceType:serviceType];
 
         NSURL *URL = [RCTConvert NSURL:options[@"url"]];
@@ -47,7 +48,7 @@
 
         UIViewController *ctrl = RCTPresentedViewController();
         [ctrl presentViewController:composeController animated:YES completion:Nil];
-        successCallback(@[@true, @""]);
+        successCallback(@[]);
       } else {
         NSString *errorMessage = @"Not installed";
         NSDictionary *userInfo = @{NSLocalizedFailureReasonErrorKey: NSLocalizedString(errorMessage, nil)};

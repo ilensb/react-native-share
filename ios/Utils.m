@@ -1,7 +1,7 @@
-#import "RNShareUtils.h"
+#import "Utils.h"
 
 
-@implementation RNShareUtils
+@implementation Utils
 
 
 /**
@@ -30,7 +30,7 @@
  the base mime type.
  */
 +(NSURL*)getPathFromBase64:(NSString*)base64String with:(NSData*)data {
-    NSString * mimeType = [RNShareUtils getExtensionFromBase64:base64String];
+    NSString * mimeType = [Utils getExtensionFromBase64:base64String];
     
     // default to png if invalid
     // it was like this originally, should it default

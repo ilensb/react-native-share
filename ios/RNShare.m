@@ -1,15 +1,45 @@
 #import <MessageUI/MessageUI.h>
 #import "RNShare.h"
 // import RCTConvert
+#if __has_include(<React/RCTConvert.h>)
 #import <React/RCTConvert.h>
+#elif __has_include("RCTConvert.h")
+#import "RCTConvert.h"
+#else
+#import "React/RCTConvert.h"   // Required when used as a Pod in a Swift project
+#endif
 // import RCTLog
+#if __has_include(<React/RCTLog.h>)
 #import <React/RCTLog.h>
+#elif __has_include("RCTLog.h")
+#import "RCTLog.h"
+#else
+#import "React/RCTLog.h"   // Required when used as a Pod in a Swift project
+#endif
 // import RCTUtils
+#if __has_include(<React/RCTUtils.h>)
 #import <React/RCTUtils.h>
+#elif __has_include("RCTUtils.h")
+#import "RCTUtils.h"
+#else
+#import "React/RCTUtils.h"   // Required when used as a Pod in a Swift project
+#endif
 // import RCTBridge
+#if __has_include(<React/RCTBridge.h>)
 #import <React/RCTBridge.h>
+#elif __has_include("RCTBridge.h")
+#import "RCTBridge.h"
+#else
+#import "React/RCTBridge.h"   // Required when used as a Pod in a Swift project
+#endif
 // import RCTBridge
+#if __has_include(<React/RCTUIManager.h>)
 #import <React/RCTUIManager.h>
+#elif __has_include("RCTUIManager.h")
+#import "RCTUIManager.h"
+#else
+#import "React/RCTUIManager.h"   // Required when used as a Pod in a Swift project
+#endif
 #import "GenericShare.h"
 #import "WhatsAppShare.h"
 #import "InstagramShare.h"
@@ -17,11 +47,8 @@
 #import "FacebookStories.h"
 #import "GooglePlusShare.h"
 #import "EmailShare.h"
-#import "TelegramShare.h"
-#import "ViberShare.h"
-#import "MessengerShare.h"
 #import "RNShareActivityItemSource.h"
-#import "RNShareUtils.h"
+#import "Utils.h"
 
 @implementation RNShare
 
@@ -64,7 +91,7 @@ EmailShare *shareCtl;
 
 - (BOOL)isImageMimeType:(NSString *)data {
     NSRange range = [data rangeOfString:@"data:image" options:NSCaseInsensitiveSearch];
-    if (data && range.location != NSNotFound) {
+    if (range.location != NSNotFound) {
         return true;
     } else {
         return false;
@@ -83,10 +110,7 @@ RCT_EXPORT_MODULE()
     @"WHATSAPP": @"whatsapp",
     @"INSTAGRAM": @"instagram",
     @"INSTAGRAMSTORIES": @"instagramstories",
-    @"TELEGRAM": @"telegram",
     @"EMAIL": @"email",
-    @"MESSENGER": @"messanger",
-    @"VIBER": @"viber",
 
     @"SHARE_BACKGROUND_IMAGE": @"shareBackgroundImage",
     @"SHARE_BACKGROUND_VIDEO": @"shareBackgroundVideo",
@@ -140,20 +164,8 @@ RCT_EXPORT_METHOD(shareSingle:(NSDictionary *)options
             NSLog(@"TRY OPEN instagram-stories");
             InstagramStories *shareCtl = [[InstagramStories alloc] init];
             [shareCtl shareSingle:options failureCallback: failureCallback successCallback: successCallback];
-         } else if([social isEqualToString:@"telegram"]) {
-            NSLog(@"TRY OPEN telegram");
-            TelegramShare *shareCtl = [[TelegramShare alloc] init];
-            [shareCtl shareSingle:options failureCallback: failureCallback successCallback: successCallback];
         } else if([social isEqualToString:@"email"]) {
             NSLog(@"TRY OPEN email");
-            [shareCtl shareSingle:options failureCallback: failureCallback successCallback: successCallback];
-        } else if([social isEqualToString:@"viber"]) {
-            NSLog(@"TRY OPEN viber");
-            ViberShare *shareCtl = [[ViberShare alloc] init];
-            [shareCtl shareSingle:options failureCallback: failureCallback successCallback: successCallback];
-        } else if([social isEqualToString:@"messenger"]) {
-            NSLog(@"TRY OPEN messenger");
-            MessengerShare *shareCtl = [[MessengerShare alloc] init];
             [shareCtl shareSingle:options failureCallback: failureCallback successCallback: successCallback];
         }
     } else {
@@ -191,7 +203,7 @@ RCT_EXPORT_METHOD(open:(NSDictionary *)options
                     return;
                 }
                 if (saveToFiles) {
-                    NSURL *filePath = [RNShareUtils getPathFromBase64:URL.absoluteString with:data];
+                    NSURL *filePath = [Utils getPathFromBase64:URL.absoluteString with:data];
                     if (filePath) {
                         [items addObject: filePath];
                     }
@@ -228,15 +240,10 @@ RCT_EXPORT_METHOD(open:(NSDictionary *)options
             RCTLogError(@"No `urls` to save in Files");
             return;
         }
-        if (@available(iOS 11.0, macCatalyst 13.1, *)) {
+        if (@available(iOS 11.0, *)) {
             resolveBlock = successCallback;
             rejectBlock = failureCallback;
-            UIDocumentPickerViewController *documentPicker = nil;
-            if (@available(iOS 15.0, macCatalyst 15.0, *)) {
-                documentPicker = [[UIDocumentPickerViewController alloc] initForExportingURLs:urls asCopy:YES];
-            } else {
-                documentPicker = [[UIDocumentPickerViewController alloc] initWithURLs:urls inMode:UIDocumentPickerModeExportToService];
-            }
+            UIDocumentPickerViewController *documentPicker = [[UIDocumentPickerViewController alloc] initWithURLs:urls inMode:UIDocumentPickerModeExportToService];
             [documentPicker setDelegate:self];
             [controller presentViewController:documentPicker animated:YES completion:nil];
             return;

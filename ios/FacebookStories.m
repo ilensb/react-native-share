@@ -8,84 +8,149 @@
 //
 
 // import RCTLog
+#if __has_include(<React/RCTLog.h>)
 #import <React/RCTLog.h>
+#elif __has_include("RCTLog.h")
+#import "RCTLog.h"
+#else
+#import "React/RCTLog.h"   // Required when used as a Pod in a Swift project
+#endif
 
 #import "FacebookStories.h"
 
 @implementation FacebookStories
 RCT_EXPORT_MODULE();
 
+- (void)backgroundImage:(NSData *)backgroundImage attributionURL:(NSString *)attributionURL appId:(NSString *)appId {
+    // Verify app can open custom URL scheme, open if able
+
+    NSURL *urlScheme = [NSURL URLWithString:@"facebook-stories://share"];
+    if ([[UIApplication sharedApplication] canOpenURL:urlScheme]) {
+        // Assign background image asset and attribution link URL to pasteboard
+        NSArray *pasteboardItems = @[@{@"com.facebook.sharedSticker.backgroundImage" : backgroundImage, @"com.facebook.sharedSticker.contentURL" : attributionURL, @"com.facebook.sharedSticker.appID" : appId}];
+        NSDictionary *pasteboardOptions = @{UIPasteboardOptionExpirationDate : [[NSDate date] dateByAddingTimeInterval:60 * 5]};
+        // This call is iOS 10+, can use 'setItems' depending on what versions you support
+        [[UIPasteboard generalPasteboard] setItems:pasteboardItems options:pasteboardOptions];
+        [[UIApplication sharedApplication] openURL:urlScheme options:@{} completionHandler:nil];
+    } else { // Handle older app versions or app not installed case
+        [self fallbackFacebook];
+    }
+}
+
+- (void)stickerImage:(NSData *)stickerImage
+  backgroundTopColor:(NSString *)backgroundTopColor
+backgroundBottomColor:(NSString *)backgroundBottomColor
+      attributionURL:(NSString *)attributionURL
+      appId:(NSString *)appId
+{
+    // Verify app can open custom URL scheme. If able,
+    // assign assets to pasteboard, open scheme.
+
+    NSURL *urlScheme = [NSURL URLWithString:@"facebook-stories://share"];
+    if ([[UIApplication sharedApplication] canOpenURL:urlScheme]) {
+
+        // Assign sticker image asset and attribution link URL to pasteboard
+
+        NSArray *pasteboardItems = @[@{@"com.facebook.sharedSticker.stickerImage" : stickerImage, @"com.facebook.sharedSticker.backgroundTopColor" : backgroundTopColor, @"com.facebook.sharedSticker.backgroundBottomColor" : backgroundBottomColor, @"com.facebook.sharedSticker.contentURL" : attributionURL, @"com.facebook.sharedSticker.appID" : appId}];
+
+        NSDictionary *pasteboardOptions = @{UIPasteboardOptionExpirationDate : [[NSDate date] dateByAddingTimeInterval:60 * 5]};
+
+        // This call is iOS 10+, can use 'setItems' depending on what versions you support
+
+        [[UIPasteboard generalPasteboard] setItems:pasteboardItems options:pasteboardOptions];
+        [[UIApplication sharedApplication] openURL:urlScheme options:@{} completionHandler:nil];
+
+    } else { // Handle older app versions or app not installed case
+        [self fallbackFacebook];
+    }
+}
+
+- (void)backgroundImage:(NSData *)backgroundImage stickerImage:(NSData *)stickerImage attributionURL:(NSString *)attributionURL  appId:(NSString *)appId
+{
+    // Verify app can open custom URL scheme. If able,
+    // assign assets to pasteboard, open scheme.
+    NSURL *urlScheme = [NSURL URLWithString:@"facebook-stories://share"];
+    if ([[UIApplication sharedApplication] canOpenURL:urlScheme]) {
+        // Assign background and sticker image assets and
+        // attribution link URL to pasteboard
+        NSArray *pasteboardItems = @[@{@"com.facebook.sharedSticker.backgroundImage" : backgroundImage, @"com.facebook.sharedSticker.stickerImage" : stickerImage, @"com.facebook.sharedSticker.contentURL" : attributionURL, @"com.facebook.sharedSticker.appID" : appId}];
+        NSDictionary *pasteboardOptions = @{UIPasteboardOptionExpirationDate : [[NSDate date] dateByAddingTimeInterval:60 * 5]};
+        // This call is iOS 10+, can use 'setItems' depending on what versions you support
+        [[UIPasteboard generalPasteboard] setItems:pasteboardItems options:pasteboardOptions];
+        [[UIApplication sharedApplication] openURL:urlScheme options:@{} completionHandler:nil];
+
+    } else { // Handle older app versions or app not installed case
+        [self fallbackFacebook];
+    }
+}
+
+
 - (void)shareSingle:(NSDictionary *)options
     failureCallback:(RCTResponseErrorBlock)failureCallback
     successCallback:(RCTResponseSenderBlock)successCallback {
 
-    NSURL *urlScheme = [NSURL URLWithString:@"facebook-stories://share"];
-    if (![[UIApplication sharedApplication] canOpenURL:urlScheme]) {
-        NSError* error = [self fallbackFacebook];
-        failureCallback(error);
-        return;
+    NSString *attrURL = [RCTConvert NSString:options[@"attributionURL"]];
+    if (attrURL == nil) {
+        attrURL = @"";
     }
 
-    // Create dictionary of assets and attribution
-    NSMutableDictionary *items = [NSMutableDictionary dictionary];
+    NSString *appId = [RCTConvert NSString:options[@"appId"]];
 
-    [items setObject: options[@"appId"] forKey: @"com.facebook.sharedSticker.appID"];
+    NSString *method = [RCTConvert NSString:options[@"method"]];
+    if (method) {
+        if([method isEqualToString:@"shareBackgroundImage"]) {
 
-    if(![options[@"backgroundImage"] isEqual:[NSNull null]] && options[@"backgroundImage"] != nil) {
-        NSURL *backgroundImageURL = [RCTConvert NSURL:options[@"backgroundImage"]];
-        UIImage *image = [UIImage imageWithData: [NSData dataWithContentsOfURL:backgroundImageURL]];
-        [items setObject: UIImagePNGRepresentation(image) forKey: @"com.facebook.sharedSticker.backgroundImage"];
-    }
+            NSURL *URL = [RCTConvert NSURL:options[@"backgroundImage"]];
+            if (URL == nil) {
+                RCTLogError(@"key 'backgroundImage' missing in options");
+            } else {
+                UIImage *image = [UIImage imageWithData: [NSData dataWithContentsOfURL:URL]];
 
-    if(![options[@"stickerImage"] isEqual:[NSNull null]] && options[@"stickerImage"] != nil) {
-        NSURL *stickerImageURL = [RCTConvert NSURL:options[@"stickerImage"]];
-        UIImage *image = [UIImage imageWithData: [NSData dataWithContentsOfURL: stickerImageURL]];
-        [items setObject: UIImagePNGRepresentation(image) forKey: @"com.facebook.sharedSticker.stickerImage"];
-    }
+                [self backgroundImage:UIImagePNGRepresentation(image) attributionURL:attrURL appId:appId];
+            }
+        } else if([method isEqualToString:@"shareStickerImage"]) {
+            RCTLog(@"method shareStickerImage");
 
-    if(![options[@"backgroundVideo"] isEqual:[NSNull null]] && options[@"backgroundVideo"] != nil) {
-        NSURL *backgroundVideoURL = [RCTConvert NSURL:options[@"backgroundVideo"]];
-        NSData *video = [NSData dataWithContentsOfURL:backgroundVideoURL];
-        [items setObject: video forKey: @"com.facebook.sharedSticker.backgroundVideo"];
-    }
+            NSString *backgroundTopColor = [RCTConvert NSString:options[@"backgroundTopColor"]];
+            if (backgroundTopColor == nil) {
+                backgroundTopColor = @"#906df4";
+            }
+            NSString *backgroundBottomColor = [RCTConvert NSString:options[@"backgroundBottomColor"]];
+            if (backgroundBottomColor == nil) {
+                backgroundBottomColor = @"#837DF4";
+            }
 
-    if(![options[@"attributionURL"] isEqual:[NSNull null]] && options[@"attributionURL"] != nil) {
-        NSString *attrURL = [RCTConvert NSString:options[@"attributionURL"]];
-        [items setObject: attrURL forKey: @"com.facebook.sharedSticker.contentURL"];
-    }
+            NSURL *URL = [RCTConvert NSURL:options[@"stickerImage"]];
+            if (URL == nil) {
+                RCTLogError(@"key 'stickerImage' missing in options");
+            } else {
+                UIImage *image = [UIImage imageWithData: [NSData dataWithContentsOfURL:URL]];
 
-    NSString *backgroundTopColor;
-     if(![options[@"backgroundTopColor"] isEqual:[NSNull null]] && options[@"backgroundTopColor"] != nil) {
-        backgroundTopColor = [RCTConvert NSString:options[@"backgroundTopColor"]];
+                [self stickerImage:UIImagePNGRepresentation(image) backgroundTopColor:backgroundTopColor backgroundBottomColor:backgroundBottomColor attributionURL:attrURL appId:appId];
+            }
+        } else if([method isEqualToString:@"shareBackgroundAndStickerImage"]) {
+            RCTLog(@"method shareBackgroundAndStickerImage");
+
+            NSURL *backgroundURL = [RCTConvert NSURL:options[@"backgroundImage"]];
+            NSURL *stickerURL = [RCTConvert NSURL:options[@"stickerImage"]];
+
+            if (backgroundURL == nil || stickerURL == nil) {
+                RCTLogError(@"key 'backgroundImage' or 'stickerImage' missing in options");
+            } else {
+                UIImage *backgroundImage = [UIImage imageWithData: [NSData dataWithContentsOfURL:backgroundURL]];
+                UIImage *stickerImage = [UIImage imageWithData: [NSData dataWithContentsOfURL:stickerURL]];
+
+                [self backgroundImage:UIImagePNGRepresentation(backgroundImage) stickerImage:UIImagePNGRepresentation(stickerImage) attributionURL:attrURL appId:appId];
+            }
+        }
     } else {
-        backgroundTopColor = @"#906df4";
+        RCTLogError(@"key 'method' missing in options");
     }
-    [items setObject: backgroundTopColor forKey: @"com.facebook.sharedSticker.backgroundTopColor"];
-
-    NSString *backgroundBottomColor;
-    if(![options[@"backgroundBottomColor"] isEqual:[NSNull null]] && options[@"backgroundBottomColor"] != nil) {
-        backgroundBottomColor = [RCTConvert NSString:options[@"backgroundBottomColor"]];
-    } else {
-        backgroundBottomColor = @"#837DF4";
-    }
-    [items setObject: backgroundBottomColor forKey: @"com.facebook.sharedSticker.backgroundBottomColor"];
-
-    // Putting dictionary of options inside an array
-    NSArray *pasteboardItems = @[items];
-
-    // Prepare options to facebook
-    NSDictionary *pasteboardOptions = @{UIPasteboardOptionExpirationDate : [[NSDate date] dateByAddingTimeInterval:60 * 5]};
-
-    // This call is iOS 10+, can use 'setItems' depending on what versions you support
-    [[UIPasteboard generalPasteboard] setItems:pasteboardItems options:pasteboardOptions];
-    [[UIApplication sharedApplication] openURL:urlScheme options:@{} completionHandler:nil];
-
-    successCallback(@[@true, @""]);
 }
 
-- (NSError*)fallbackFacebook {
+- (void)fallbackFacebook {
     // Cannot open facebook
-    NSString *stringURL = @"https://itunes.apple.com/app/facebook/id284882215";
+    NSString *stringURL = @"http://itunes.apple.com/app/facebook/id284882215";
     NSURL *url = [NSURL URLWithString:stringURL];
     [[UIApplication sharedApplication] openURL:url];
 
@@ -94,6 +159,5 @@ RCT_EXPORT_MODULE();
     NSError *error = [NSError errorWithDomain:@"com.rnshare" code:1 userInfo:userInfo];
 
     NSLog(errorMessage);
-    return error;
 }
 @end
